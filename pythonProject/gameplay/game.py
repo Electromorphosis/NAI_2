@@ -1,14 +1,18 @@
 import pygame
 import sys
 import math
+import random
+
+
+# TODO rozbic klasy na oddzielne pliki
+# to nie byl najlepszy pomysl by miec wszystko w jednym
 
 class GameObject:
     def __init__(self, x, y):
         self.xPos = x
         self.yPos = y
-        self.image = pygame.Surface((50, 100))
-        self.image.fill((255, 255, 255))
         self.angle = 0.0
+        self.debug_mode = False
 
     def draw(self, screen):
         raise NotImplementedError("Subclass must implement draw method")
@@ -16,19 +20,31 @@ class GameObject:
     def update(self):
         raise NotImplementedError("Subclass must implement update method")
 
+
 class Rocket(GameObject):
     def __init__(self, xPos, yPos):
         super().__init__(xPos, yPos)
+
         self.deltaX = 0
         self.deltaY = 0
+
         self.fuel = 100.0
-        self.thrust_power = 0.1
+        self.thrust_power = 0.10
+
         self.image = pygame.image.load("pythonProject/gameplay/rocket.png").convert_alpha()
-        self.image = pygame.transform.scale(self.image, (50, 100))
+        self.image_width = 50
+        self.image_height = 100
+        self.image = pygame.transform.scale(self.image, (self.image_width, self.image_height))
         self.original_image = self.image
 
+        self.collision = self.image.get_rect(topleft=(self.xPos, self.yPos))
 
-    def update(self, gravity=0.05):
+        self.show_fire = False
+        self.fire_color = (255, 0, 0)
+        self.fire_width = 50
+        self.fire_height = 20
+
+    def update(self, gravity=0.03):
 
         keys = pygame.key.get_pressed()
         if keys[pygame.K_LEFT]:
@@ -44,15 +60,39 @@ class Rocket(GameObject):
                 self.deltaX += self.thrust_power * math.sin(rad)
                 self.deltaY -= self.thrust_power * math.cos(rad)
 
+        if keys[pygame.K_UP]:
+            self.show_fire = True
+        else:
+            self.show_fire = False
+
         self.deltaY += gravity
         self.xPos += self.deltaX
         self.yPos += self.deltaY
 
+        rotated_image = pygame.transform.rotate(self.original_image, -self.angle)
+        self.collision = rotated_image.get_rect(center=(self.xPos, self.yPos))
+
     def draw(self, screen):
         rotated_image = pygame.transform.rotate(self.original_image, -self.angle)
         rotated_rect = rotated_image.get_rect(center=(self.xPos, self.yPos))
+
         screen.blit(rotated_image, rotated_rect.topleft)
 
+        if self.show_fire:
+            fire_x = self.xPos - (self.fire_width // 2)
+            fire_y = rotated_rect.bottom
+
+            fire_surface = pygame.Surface((self.fire_width, self.fire_height), pygame.SRCALPHA)
+
+            fire_surface.fill(self.fire_color)
+            fire_surface.set_alpha(128)
+
+            fire_surface = pygame.transform.rotate(fire_surface, -self.angle)
+            fire_rect = fire_surface.get_rect(center=(fire_x + (self.fire_width / 2), fire_y + self.fire_height/2))
+            screen.blit(fire_surface, fire_rect.topleft)
+
+        if self.debug_mode:
+            pygame.draw.rect(screen, (255, 0, 0), self.collision, 2)
 
     def getFuel(self) -> float:
         return self.fuel
@@ -66,6 +106,7 @@ class Rocket(GameObject):
     def getDeltaY(self) -> float:
         return self.deltaY
 
+
 class Teren(GameObject):
     def __init__(self, xPos, yPos, width, height, is_landable):
         super().__init__(xPos, yPos)
@@ -75,41 +116,64 @@ class Teren(GameObject):
 
     def draw(self, screen):
         pygame.draw.rect(screen, self.color, self.rect)
+        if self.debug_mode:
+            pygame.draw.rect(screen, (0, 255, 0), self.rect, 2)
 
     def check_collision(self, Rocket):
-        return self.rect.colliderect(Rocket.image.get_rect(topleft=(Rocket.xPos, Rocket.yPos)))
+        return self.rect.colliderect(Rocket.collision)
 
     def check_landing(Rocket):
         print("Check angle...")
         return False
 
+
 class Tlo(GameObject):
-    def __init__(self,xPos, yPos,Rocket):
+    def __init__(self, xPos, yPos, Rocket):
         super().__init__(xPos, yPos)
         self.font = pygame.font.Font(None, 36)
         self.rocket = Rocket
-    def draw(self,screen):
+
+    def draw(self, screen):
         text = f"""fuel: {self.rocket.getFuel():.2f}
         angle: {self.rocket.getAngle():.2f}
         deltaY: {self.rocket.getDeltaY():.2f}"""
         text_surface = self.font.render(text, True, (255, 255, 255))
         screen.blit(text_surface, (10, 10))
 
+class GameManager:
+    def __init__(self,sWidth,sHeight,x=400,y=50):
+        self.terrain_lins = list()
+        self.rocket = Rocket(x,y)
+        self.SCREEN_HEIGHT = sHeight
+        self.SCREEN_WIDTH = sWidth
+        self.tlo = Tlo(0,0,self.rocket)
+
+    def generate_random_terrain(self,num_terrains,):
+        terrain_list = []
+        for _ in range(num_terrains):
+            x = random.randint(0, self.SCREEN_WIDTH - 100)
+            width = random.randint(50, 200)
+            y = self.SCREEN_WIDTH - random.randint(20, 100)
+            can_land = random.choice([True, False])
+
+            terrain = Teren(x, y, width, 10, can_land)
+            terrain_list.append(terrain)
+
+        return terrain_list
 
 def main(sWidth, sHeight):
-
     pygame.init()
-    SCREEN_WIDTH, SCREEN_HEIGHT = sWidth, sHeight
+    (SCREEN_WIDTH,SCREEN_HEIGHT) = sWidth, sHeight
     screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
     pygame.display.set_caption("Lunar Lander with fuzzy logic")
     clock = pygame.time.Clock()
 
-    rakieta = Rocket(400, 50)
-    teren = [
-        Teren(SCREEN_WIDTH/4, SCREEN_HEIGHT - 100, SCREEN_WIDTH/2 , 10, True),
-        Teren(0, SCREEN_HEIGHT - 50, SCREEN_WIDTH, 30, False)
-    ]
-    tlo = Tlo(0,0,rakieta)
+    gameManager = GameManager(SCREEN_WIDTH,SCREEN_HEIGHT,random.randint(50, SCREEN_WIDTH-50), 50)
+    rakieta = gameManager.rocket
+
+    teren = gameManager.generate_random_terrain(20)
+
+    tlo = gameManager.tlo
 
     gameObjects = [rakieta, *teren, tlo]
 
@@ -121,18 +185,23 @@ def main(sWidth, sHeight):
             if event.type == pygame.QUIT:
                 running = False
 
-
         rakieta.update()
+
         for gameObject in gameObjects:
             gameObject.draw(screen)
 
             for teren_obj in teren:
                 if teren_obj.check_collision(rakieta):
                     if teren_obj.is_landable:
-                        #if teren_obj.check_landing(rakieta):
-                        print("Landing")
-                        running = False
+                        if rakieta.deltaY > 1 & (rakieta.angle < 3.0) & (rakieta.angle > -3.0):
+                            print("Katastrofa lotnicza")
+                            # if teren_obj.check_landing(rakieta):
+                        else:
+                            print("Sukces")
+                    else:
+                        print("Katastrofa lotnicza tu nie mozna ladowac")
 
+                    running = False
 
         pygame.display.flip()
         clock.tick(60)
