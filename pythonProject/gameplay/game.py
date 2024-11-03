@@ -1,7 +1,10 @@
-import pygame
-import sys
 import math
 import random
+import sys
+
+import pygame
+
+from pythonProject.ai_system.fuzzy import landing_sim
 
 
 # TODO rozbic klasy na oddzielne pliki
@@ -44,7 +47,38 @@ class Rocket(GameObject):
         self.fire_width = 50
         self.fire_height = 20
 
-    def update(self, gravity=0.03):
+    def normalizeValues(self):
+        if self.angle > 180:
+            self.angle = -179
+        if self.angle < -179:
+            self.angle = 180
+
+
+    def update(self, gravity=0.0003):
+        self.normalizeValues()
+        print(f"Input thrust_power={self.getThrustPower()}, angle={self.getAngle()}, deltaY={self.getDeltaY()}, deltaX={self.deltaX} ")
+        print(f"X={self.xPos}, Y={self.yPos}")
+
+        landing_sim.input['posX'] = self.xPos
+        # landing_sim.input['posY'] = self.yPos
+        landing_sim.input['angle'] = self.angle
+        landing_sim.input['velocityX'] = self.deltaX
+        landing_sim.input['velocityY'] = self.deltaY
+        landing_sim.compute()
+        delta_angle_output = landing_sim.output.get('deltaAngle')
+        delta_control_output = landing_sim.output.get('thrustControl')
+        if delta_angle_output is None:
+            delta_control_output = 0.0
+
+        print(f"deltaAngle={delta_angle_output}, thrustControl={delta_control_output}")
+        print(landing_sim.output)
+        self.angle += landing_sim.output['deltaAngle']
+        # if self.fuel > 0:
+        #     self.fuel -= 0.4
+        #     self.thrust_power += landing_sim.output['thrustControl']
+        #     rad = math.radians(self.angle)
+        #     self.deltaX += self.thrust_power * math.sin(rad)
+        #     self.deltaY -= self.thrust_power * math.cos(rad)
 
         keys = pygame.key.get_pressed()
         if keys[pygame.K_LEFT]:
@@ -55,10 +89,16 @@ class Rocket(GameObject):
 
         if keys[pygame.K_UP]:
             if self.fuel > 0:
-                self.fuel -= 0.4  #
+                self.fuel -= 0.4
+                self.thrust_power += 0.1
                 rad = math.radians(self.angle)
                 self.deltaX += self.thrust_power * math.sin(rad)
                 self.deltaY -= self.thrust_power * math.cos(rad)
+        else:
+            if self.thrust_power > 0:
+                self.thrust_power -= 0.01
+            else:
+                self.thrust_power = 0
 
         if keys[pygame.K_UP]:
             self.show_fire = True
@@ -154,14 +194,13 @@ class GameManager:
             x = random.randint(0, self.SCREEN_WIDTH - 100)
             width = random.randint(50, 200)
             y = self.SCREEN_WIDTH - random.randint(20, 100)
-            can_land = random.choice([True, False])
-
-            terrain = Teren(x, y, width, 10, can_land)
+            # can_land = random.choice([True, False])
+            terrain = Teren(x, y, width, 10, True) # Tryb debug - należałoby zaimplementować wykrywanie ścieżki do terenu do lądowania
             terrain_list.append(terrain)
 
         return terrain_list
 
-def main(sWidth, sHeight):
+def main(sWidth, sHeight, fuzzy):
     pygame.init()
     (SCREEN_WIDTH,SCREEN_HEIGHT) = sWidth, sHeight
     screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
