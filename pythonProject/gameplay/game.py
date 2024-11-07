@@ -54,13 +54,13 @@ class Rocket(GameObject):
             self.angle = 180
 
 
-    def update(self, gravity=0.01):
+    def update(self, gravity=0.119):
         self.normalizeValues()
         print(f"Input thrust_power={self.getThrustPower()}, angle={self.getAngle()}, deltaY={self.getDeltaY()}, deltaX={self.deltaX} ")
         print(f"X={self.xPos}, Y={self.yPos}")
 
         # landing_sim.input['posX'] = self.xPos
-        # landing_sim.input['posY'] = self.yPos
+        landing_sim.input['posY'] = self.yPos
         landing_sim.input['angle'] = self.angle
         # landing_sim.input['velocityX'] = self.deltaX
         landing_sim.input['velocityY'] = self.deltaY
@@ -69,14 +69,18 @@ class Rocket(GameObject):
         delta_thrust_output = landing_sim.output.get('thrustControl')
         if delta_angle_output is None:
             delta_angle_output = 0.0
-        if delta_thrust_output is None:
+        if delta_thrust_output is None or delta_thrust_output < 0.0:
             delta_thrust_output = 0.0
 
         print(f"deltaAngle={delta_angle_output} thrustControl={delta_thrust_output}")
         print(landing_sim.output)
         self.angle += delta_angle_output
         rad = math.radians(self.angle)
-        # self.thrust_power = delta_thrust_output
+        if self.fuel > 0:
+            self.fuel -= delta_thrust_output
+            self.thrust_power = delta_thrust_output
+        else:
+            self.thrust_power = 0
         self.deltaX += self.thrust_power * math.sin(rad)
         self.deltaY -= self.thrust_power * math.cos(rad)
 
@@ -94,11 +98,11 @@ class Rocket(GameObject):
                 rad = math.radians(self.angle)
                 self.deltaX += self.thrust_power * math.sin(rad)
                 self.deltaY -= self.thrust_power * math.cos(rad)
-        else:
-            if self.thrust_power > 0:
-                self.thrust_power -= 0.01
-            else:
-                self.thrust_power = 0
+        # else:
+        #     if self.thrust_power > 0:
+        #         self.thrust_power -= 0.01
+        #     else:
+        #         self.thrust_power = 0
 
         if self.thrust_power > 0.05:
             self.show_fire = True
