@@ -75,14 +75,54 @@ thrustControl['slight_thrust'] = fuzz.trimf(thrustControl.universe, [0, 0.1, 0.2
 thrustControl['strong_thrust'] = fuzz.trimf(thrustControl.universe, [0.1, 0.3, 0.3])
 
 ## RULES
-correct_left = ctrl.Rule(angle['left'], deltaAngle['right'])
-correct_right = ctrl.Rule(angle['right'], deltaAngle['left'])
-allow_going_down = ctrl.Rule(y_velocity['optimal'], thrustControl['no_thrust'])
-optimize_velocity = ctrl.Rule(y_velocity['bit_high'] & angle['optimal'], thrustControl['slight_thrust'])
-respond_to_extreme_velocity = ctrl.Rule(y_velocity['too_high'] & angle['optimal'], thrustControl['slight_thrust'])
+## 1. y_velocity too high
+rule_1a = ctrl.Rule(y_velocity['too_high'] & angle['optimal'], thrustControl['strong_thrust'])
+rule_1b_angle = ctrl.Rule(y_velocity['too_high'] & angle['left'], deltaAngle['slight_right'])
+rule_1b_thrust = ctrl.Rule(y_velocity['too_high'] & angle['left'], thrustControl['slight_thrust'])
+rule_1c_angle = ctrl.Rule(y_velocity['too_high'] & angle['right'], deltaAngle['slight_left'])
+rule_1c_thrust = ctrl.Rule(y_velocity['too_high'] & angle['right'], thrustControl['slight_thrust'])
 
+rule_1d1_angle = ctrl.Rule(y_velocity['too_high'] & angle['extreme_left'], deltaAngle['right'])
+rule_1d1_thrust = ctrl.Rule(y_velocity['too_high'] & angle['extreme_left'], thrustControl['no_thrust'])
+rule_1d2_angle = ctrl.Rule(y_velocity['too_high'] & angle['extreme_right'], deltaAngle['left'])
+rule_1d2_thrust = ctrl.Rule(y_velocity['too_high'] & angle['extreme_right'], thrustControl['no_thrust'])
+
+## 2. Dangerous angle
+rule_2a = ctrl.Rule(angle['dangerous_left'], deltaAngle['slight_right'])
+rule_2b = ctrl.Rule(angle['dangerous_right'], deltaAngle['slight_left'])
+
+rule_2c = ctrl.Rule(angle['extreme_left'], deltaAngle['right'])
+rule_2d = ctrl.Rule(angle['extreme_right'], deltaAngle['left'])
+
+## 3. Ship too far away from the center of the map
+rule_3a_angle = ctrl.Rule(x_pos['left'], deltaAngle['slight_right'])
+rule_3a_thrust = ctrl.Rule(x_pos['left'], thrustControl['slight_thrust'])
+rule_3b_angle = ctrl.Rule(x_pos['right'], deltaAngle['slight_left'])
+rule_3b_thrust = ctrl.Rule(x_pos['right'], thrustControl['slight_thrust'])
+
+rule_3c_angle = ctrl.Rule(x_pos['far_left'], deltaAngle['right'])
+rule_3c_thrust = ctrl.Rule(x_pos['far_left'], thrustControl['slight_thrust'])
+rule_3d_angle = ctrl.Rule(x_pos['far_right'], deltaAngle['left'])
+rule_3d_thrust = ctrl.Rule(x_pos['far_right'], thrustControl['slight_thrust'])
+
+## 4. Ship goes too much to the side
+rule_4a = ctrl.Rule(x_velocity['extreme_left'], deltaAngle['right'])
+rule_4b = ctrl.Rule(x_velocity['extreme_right'], deltaAngle['left'])
+
+rule_4a_angle = ctrl.Rule(x_velocity['too_left'], deltaAngle['right'])
+rule_4a_thrust = ctrl.Rule(x_velocity['too_left'], thrustControl['slight_thrust'])
+rule_4b_angle = ctrl.Rule(x_velocity['too_right'], deltaAngle['left'])
+rule_4b_thrust = ctrl.Rule(x_velocity['too_right'], thrustControl['slight_thrust'])
+
+## 5. y_velocity < 0
+rule_5 = ctrl.Rule(y_velocity['escape_velocity'], thrustControl['no_thrust'])
+
+## Create a control system and simulation
 landing_ctrl = ctrl.ControlSystem(
-     [correct_left, correct_right, respond_to_extreme_velocity]
+     [rule_1a, rule_1b_angle, rule_1b_thrust, rule_1c_angle, rule_1c_thrust, rule_1d1_angle, rule_1d1_thrust, \
+      rule_1d2_angle, rule_1d2_thrust, rule_2a, rule_2b, rule_2c, rule_2d, rule_3a_angle, rule_3a_thrust, \
+      rule_3b_angle, rule_3b_thrust, rule_3c_angle, rule_3c_thrust, rule_3d_angle, rule_3d_thrust, rule_4a, rule_4b, \
+      rule_5]
     )
 
 landing_sim = ctrl.ControlSystemSimulation(landing_ctrl)

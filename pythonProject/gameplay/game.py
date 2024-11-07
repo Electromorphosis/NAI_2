@@ -54,31 +54,31 @@ class Rocket(GameObject):
             self.angle = 180
 
 
-    def update(self, gravity=0.0003):
+    def update(self, gravity=0.01):
         self.normalizeValues()
         print(f"Input thrust_power={self.getThrustPower()}, angle={self.getAngle()}, deltaY={self.getDeltaY()}, deltaX={self.deltaX} ")
         print(f"X={self.xPos}, Y={self.yPos}")
 
-        landing_sim.input['posX'] = self.xPos
+        # landing_sim.input['posX'] = self.xPos
         # landing_sim.input['posY'] = self.yPos
         landing_sim.input['angle'] = self.angle
-        landing_sim.input['velocityX'] = self.deltaX
+        # landing_sim.input['velocityX'] = self.deltaX
         landing_sim.input['velocityY'] = self.deltaY
         landing_sim.compute()
         delta_angle_output = landing_sim.output.get('deltaAngle')
-        delta_control_output = landing_sim.output.get('thrustControl')
+        delta_thrust_output = landing_sim.output.get('thrustControl')
         if delta_angle_output is None:
-            delta_control_output = 0.0
+            delta_angle_output = 0.0
+        if delta_thrust_output is None:
+            delta_thrust_output = 0.0
 
-        print(f"deltaAngle={delta_angle_output}, thrustControl={delta_control_output}")
+        print(f"deltaAngle={delta_angle_output} thrustControl={delta_thrust_output}")
         print(landing_sim.output)
-        self.angle += landing_sim.output['deltaAngle']
-        # if self.fuel > 0:
-        #     self.fuel -= 0.4
-        #     self.thrust_power += landing_sim.output['thrustControl']
-        #     rad = math.radians(self.angle)
-        #     self.deltaX += self.thrust_power * math.sin(rad)
-        #     self.deltaY -= self.thrust_power * math.cos(rad)
+        self.angle += delta_angle_output
+        rad = math.radians(self.angle)
+        # self.thrust_power = delta_thrust_output
+        self.deltaX += self.thrust_power * math.sin(rad)
+        self.deltaY -= self.thrust_power * math.cos(rad)
 
         keys = pygame.key.get_pressed()
         if keys[pygame.K_LEFT]:
@@ -88,7 +88,7 @@ class Rocket(GameObject):
             self.angle += 2
 
         if keys[pygame.K_UP]:
-            if self.fuel > 0:
+            if self.fuel > 0 and self.thrust_power < 0.1:
                 self.fuel -= 0.4
                 self.thrust_power += 0.1
                 rad = math.radians(self.angle)
@@ -100,7 +100,7 @@ class Rocket(GameObject):
             else:
                 self.thrust_power = 0
 
-        if keys[pygame.K_UP]:
+        if self.thrust_power > 0.05:
             self.show_fire = True
         else:
             self.show_fire = False
