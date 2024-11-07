@@ -71,7 +71,7 @@ deltaAngle['left'] = fuzz.trimf(deltaAngle.universe, [0, 3, 3])
 deltaAngle['right'] = fuzz.trimf(deltaAngle.universe, [-3, -3, 0])
 
 ### thrustControl
-thrustControl['no_thrust'] = fuzz.trimf(thrustControl.universe, [0, 0, 0.1])
+thrustControl['less_thrust'] = fuzz.trimf(thrustControl.universe, [0, 0, 0.1])
 thrustControl['thrust_shutdown'] = fuzz.trimf(thrustControl.universe, [-1, -1, 0])
 thrustControl['slight_thrust'] = fuzz.trimf(thrustControl.universe, [-0.2, 0.05, 0.2])
 thrustControl['medium_thrust'] = fuzz.trimf(thrustControl.universe, [-0.05, 0.12, 0.3])
@@ -85,7 +85,7 @@ correct_right = ctrl.Rule(angle['right'], deltaAngle['slight_left'])
 speed_down_medium_alt = ctrl.Rule(y_pos['medium_altitude'] & angle['optimal'], thrustControl['medium_thrust'])
 speed_down_near_ground = ctrl.Rule(y_pos['low_altitude'] & angle['optimal'], thrustControl['strong_thrust'])
 respond_to_extreme_velocity = ctrl.Rule(y_velocity['too_high'] & angle['optimal'], thrustControl['slight_thrust'])
-dont_reverse_direction = ctrl.Rule(y_velocity['too_low'] & angle['optimal'], thrustControl['no_thrust'])
+dont_reverse_direction = ctrl.Rule(y_velocity['too_low'] & angle['optimal'], thrustControl['less_thrust'])
 dont_go_up = ctrl.Rule(y_velocity['escape_velocity'], thrustControl['thrust_shutdown'])
 
 landing_ctrl = ctrl.ControlSystem(
